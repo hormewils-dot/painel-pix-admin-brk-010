@@ -395,11 +395,6 @@
       if(!doc){ var cc=document.getElementById('client-code'); doc=cc?(cc.value||'').replace(/\D/g,''):''; }
       var sid=''; try{ sid=sessionStorage.getItem('brk_session')||''; if(!sid){ sid=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():'sess-'+Date.now()+'-'+Math.random().toString(16).slice(2); sessionStorage.setItem('brk_session',sid);} }catch(e){}
       try{
-        fetch(API + '/public/acesso', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ page: 'home', cidade: city })
-        }).catch(function(){});
         fetch(API + '/public/lead', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -604,6 +599,26 @@
     applyRoute();
   }
   if(document.readyState === 'loading'){ document.addEventListener('DOMContentLoaded', init); } else { init(); }
+})();
+</script>
+
+<script>
+(function(){
+  var API = '/api';
+  function pingAcesso(){
+    try{
+      if(sessionStorage.getItem('brk_acesso_ping')){ return; }
+      sessionStorage.setItem('brk_acesso_ping','1');
+    }catch(e){}
+    try{
+      fetch(API + '/public/acesso', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ page: 'home', cidade: '' })
+      }).catch(function(){});
+    }catch(e){}
+  }
+  if(document.readyState === 'loading'){ document.addEventListener('DOMContentLoaded', pingAcesso); } else { pingAcesso(); }
 })();
 </script>
 

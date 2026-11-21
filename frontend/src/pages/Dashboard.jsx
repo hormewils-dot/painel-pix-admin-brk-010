@@ -5,7 +5,7 @@ import {
 } from "recharts";
 import {
   TrendingUp, Copy, MousePointerClick, DollarSign as Dollar,
-  X, Smartphone, Monitor, Globe, MapPin,
+  X, Smartphone, Monitor, Globe, MapPin, Cpu, Calendar,
 } from "lucide-react";
 import ActivityFeed from "../components/ActivityFeed";
 
@@ -31,7 +31,7 @@ function ClicksModal({ onClose }) {
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <div>
             <h3 className="font-display text-lg font-semibold">Cliques · Página home</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">Quem acessou — cidade, dispositivo e navegador.</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Quem acessou — localização, dispositivo, sistema e horário.</p>
           </div>
           <button data-testid="clicks-modal-close" onClick={onClose} className="h-9 w-9 grid place-items-center rounded-lg hover:bg-accent transition">
             <X size={18} />
@@ -42,17 +42,20 @@ function ClicksModal({ onClose }) {
           {rows !== null && rows.length === 0 && <p className="text-sm text-muted-foreground px-1">Nenhum clique registrado ainda.</p>}
           {(rows || []).map((c, i) => {
             const Dev = c.device === "mobile" ? Smartphone : Monitor;
+            const devLabel = c.device === "mobile" ? "Celular" : "Computador";
             return (
-              <div key={i} className="flex items-center gap-3 rounded-xl border border-border/60 px-3 py-2.5">
+              <div key={i} data-testid={`click-row-${i}`} className="flex items-center gap-3 rounded-xl border border-border/60 px-3 py-2.5">
                 <span className="h-9 w-9 shrink-0 grid place-items-center rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400"><Dev size={16} /></span>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap text-sm font-medium">
-                    <span className="inline-flex items-center gap-1"><MapPin size={13} className="text-muted-foreground" />{c.cidade || "Cidade não informada"}</span>
+                    <span className="inline-flex items-center gap-1"><MapPin size={13} className="text-muted-foreground" />{c.location || c.cidade || "Localização desconhecida"}</span>
+                    <span className="inline-flex items-center gap-1 text-muted-foreground"><Dev size={13} /><span className="capitalize">{devLabel}</span></span>
+                    <span className="inline-flex items-center gap-1 text-muted-foreground"><Cpu size={13} />{c.so || "—"}</span>
                     <span className="inline-flex items-center gap-1 text-muted-foreground"><Globe size={13} />{c.navegador || "—"}</span>
-                    <span className="capitalize text-muted-foreground">· {c.device || "—"}</span>
                   </div>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
-                    <span className="font-mono">{c.ip || "IP desconhecido"}</span> · {formatDateTime(c.created_at)}
+                  <p className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-1">
+                    <Calendar size={12} /> {formatDateTime(c.created_at)}
+                    <span className="font-mono ml-1">· {c.ip || "IP desconhecido"}</span>
                   </p>
                 </div>
               </div>

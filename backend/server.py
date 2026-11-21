@@ -17,6 +17,7 @@ import bcrypt
 import jwt
 import uuid
 import requests
+import asyncio
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -151,6 +152,53 @@ def parse_browser(ua: str) -> str:
         if key in ua:
             return name
     return "Outro"
+
+
+def parse_os(ua: str) -> str:
+    ua = ua or ""
+    if "Windows NT" in ua:
+        return "Windows"
+    if any(k in ua for k in ("iPhone", "iPad", "iPod")):
+        return "iOS"
+    if "Android" in ua:
+        return "Android"
+    if "Mac OS X" in ua or "Macintosh" in ua:
+        return "macOS"
+    if "Linux" in ua:
+        return "Linux"
+    return "Outro"
+
+
+def _is_private_ip(ip: str) -> bool:
+    if not ip or ip in ("::1", "localhost"):
+        return True
+    return ip.startswith(("127.", "10.", "192.168.", "172.16.", "172.17.", "172.18.",
+                          "172.19.", "172.2", "172.30.", "172.31.", "::", "fc", "fd"))
+
+
+async def geolocate(ip: str) -> str:
+    if _is_private_ip(ip):
+        return ""
+
+    def _fetch():
+        try:
+            r = requests.get(
+                f"http://ip-api.com/json/{ip}",
+                params={"fields": "status,country,regionName,city"},
+                timeout=3,
+            )
+            d = r.json()
+            if d.get("status") == "success":
+                parts = [d.get("city"), d.get("regionName"), d.get("country")]
+                return ", ".join([p for p in parts if p])
+        except (requests.RequestException, ValueError):
+            return ""
+        return ""
+
+    try:
+        return await asyncio.to_thread(_fetch)
+    except Exception:
+        return ""
 
 # ---------------------------------------------------------------------------
 # PIX BR Code (EMV) generator — static PIX with amount, payable by any bank app
@@ -341,23 +389,32 @@ async def public_acesso(data: AcessoInput, request: Request):
     ua = request.headers.get("user-agent", "")
     ip = (request.headers.get("x-forwarded-for", "").split(",")[0].strip()
           or (request.client.host if request.client else ""))
+    device = parse_device(ua)
+    so = parse_os(ua)
+    location = await geolocate(ip)
     await db.clicks.insert_one({
         "page": page,
         "cidade": data.cidade or "",
-        "device": parse_device(ua),
+        "device": device,
         "navegador": parse_browser(ua),
+        "so": so,
+        "location": location,
         "ip": ip,
         "user_agent": ua,
         "created_at": now_iso(),
     })
     label = "Página inicial" if page == "home" else "Página de faturas"
+    local_txt = location or (data.cidade or "Site público")
     await add_activity({
         "type": f"acesso_{page}",
         "title": f"Novo acesso · {label}",
-        "subtitle": data.cidade or "Site público",
-        "device": parse_device(ua),
+        "subtitle": local_txt,
+        "device": device,
+        "so": so,
+        "location": location,
     })
-    await notify_telegram("acesso", f"👀 Novo acesso ao site · {label}")
+    dispositivo_txt = "Celular" if device == "mobile" else "Computador"
+    await notify_telegram("acesso", f"👀 Novo acesso ao site · {label}\n📍 {local_txt}\n📱 {dispositivo_txt} · {so}")
     return {"ok": True}
 
 
