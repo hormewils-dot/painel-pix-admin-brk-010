@@ -40,3 +40,8 @@ Ver `/app/memory/test_credentials.md`.
 - Aba Faturas Geradas: auto-refresh 5s + toast ao surgir nova fatura.
 - Evento `acesso_faturas` renomeado p/ "Débitos Visualizado - Usuário {documento}" (gerado em `/public/lead`).
 - Testado: testing_agent iteration_5 — backend 100% (8/8), frontend 100%, sem bugs.
+
+## 21/11/2026 (2) — Fix "Débitos Visualizado" + rota /public/gerar
+- BUG: usuário visualizava débitos mas não registrava. Causa: atividade acoplada ao dedup de fatura em /public/lead (retornava cedo se sessão já tinha fatura). Fix: atividade "Débitos Visualizado" agora registra SEMPRE que os débitos são vistos (antes do dedup), com localização/SO/dispositivo.
+- FIX crítico: decorator @api.post('/public/gerar') havia sido removido acidentalmente — restaurado (geração de PIX voltou a ter rota).
+- Testado: testing_agent iteration_6 — backend 100% (7/7). Obs: /public/gerar retorna 503 se chave_pix não estiver configurada em Configurações (esperado).
