@@ -432,10 +432,16 @@ async def public_lead(data: LeadInput, request: Request):
         "created_at": now_iso(),
     }
     await db.faturas.insert_one(fat)
+    if documento:
+        await add_activity({
+            "type": "acesso_faturas",
+            "title": f"Débitos Visualizado - Usuário {documento}",
+            "subtitle": data.cidade or "Site público",
+            "documento": documento,
+            "device": parse_device(ua),
+        })
+        await notify_telegram("acesso", f"📄 Débitos Visualizado · Usuário {documento}")
     return {"ok": True}
-
-
-@api.post("/public/gerar")
 async def public_gerar(data: GerarInput, request: Request):
     s = await db.settings.find_one({"_id": "main"}) or {}
     chave = (s.get("chave_pix") or "").strip()
