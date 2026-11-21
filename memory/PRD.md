@@ -32,3 +32,11 @@ Requisitos do painel: chave PIX, notificações Telegram, dashboard (faturas, ac
 
 ## Credenciais
 Ver `/app/memory/test_credentials.md`.
+
+## 21/11/2026 — Rastreamento de acesso (painel)
+- BUG corrigido: abrir a home do site público não registrava acesso (acesso só disparava no submit do CPF). Agora `minhabrk.html` dispara `POST /api/public/acesso` ao carregar (1x por sessão via sessionStorage `brk_acesso_ping`).
+- Backend `/public/acesso` enriquece o registro: `so` (parse_os), `location` (geolocalização por IP via ip-api.com, timeout 3s, vazio p/ IP privado), `device`. Atividade `acesso_home` passa a mostrar localização.
+- Modal de cliques (card CLICKS PÁGINA HOME) mostra: localização, dispositivo (Celular/Computador), sistema operacional, navegador, data/hora e IP.
+- Aba Faturas Geradas: auto-refresh 5s + toast ao surgir nova fatura.
+- Evento `acesso_faturas` renomeado p/ "Débitos Visualizado - Usuário {documento}" (gerado em `/public/lead`).
+- Testado: testing_agent iteration_5 — backend 100% (8/8), frontend 100%, sem bugs.
