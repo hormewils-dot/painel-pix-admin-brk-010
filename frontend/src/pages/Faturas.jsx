@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import api, { formatBRL, formatDateTime } from "../lib/api";
 import { QRCodeSVG } from "qrcode.react";
 import { toast } from "sonner";
@@ -28,11 +28,23 @@ export default function Faturas() {
   const [status, setStatus] = useState("todos");
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
+  const knownIds = useRef(null);
 
   const load = async () => {
     try {
       const r = await api.get("/faturas", { params: { search: search || undefined, status, limit: 200 } });
-      setFaturas(r.data.faturas);
+      const novas = r.data.faturas;
+      if (knownIds.current !== null) {
+        const chegaram = novas.filter((f) => !knownIds.current.has(f.id));
+        if (chegaram.length) {
+          toast.success(
+            chegaram.length === 1 ? "Nova fatura gerada" : `${chegaram.length} novas faturas geradas`,
+            { description: chegaram.length === 1 ? `Documento ${chegaram[0].documento}` : "Atualizado no site público." }
+          );
+        }
+      }
+      knownIds.current = new Set(novas.map((f) => f.id));
+      setFaturas(novas);
       setTotal(r.data.total);
     } catch (_) {
     } finally {
@@ -41,8 +53,15 @@ export default function Faturas() {
   };
 
   useEffect(() => {
+    knownIds.current = null;
     const t = setTimeout(load, 250);
     return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, status]);
+
+  useEffect(() => {
+    const iv = setInterval(load, 5000);
+    return () => clearInterval(iv);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, status]);
 
